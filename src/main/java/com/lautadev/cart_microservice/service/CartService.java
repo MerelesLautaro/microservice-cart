@@ -54,16 +54,16 @@ public class CartService implements ICartService{
         List<Cart> cartList = cartRepo.findAll();
         List<CartDTO> cartDTOList = new LinkedList<>();
 
-        // Recolectar todos los IDs de productos de todos los carros
+        // Recorro todos los carritos y guardo en un Array todos los IDs de los productos.
         List<Long> allProductIds = new ArrayList<>();
         for (Cart cart : cartList) {
             allProductIds.addAll(cart.getIdProducts());
         }
 
-        // Llamar a la API de productos una vez para obtener todos los productos necesarios
+        // Llamo a la API una vez para obtener todos los productos necesarios.
         List<ProductsDTO> allProducts = productAPI.findProductsByIds(allProductIds);
 
-        // Mapear los productos obtenidos por su ID para un acceso rápido
+        // Mapeo los productos obtenidos por su ID.
         Map<Long, ProductsDTO> productsMap = allProducts.stream()
                 .collect(Collectors.toMap(ProductsDTO::getCode, product -> product));
 
@@ -72,12 +72,7 @@ public class CartService implements ICartService{
                     .map(productsMap::get)
                     .collect(Collectors.toList());
 
-            CartDTO cartDTO = new CartDTO();
-            cartDTO.setId(cart.getId());
-            cartDTO.setIdProducts(cart.getIdProducts());
-            cartDTO.setListProducts(listProductsDTO);
-            cartDTO.setTotalPrice(cart.getTotalPrice());
-            cartDTOList.add(cartDTO);
+            cartDTOList.add(new CartDTO(cart,listProductsDTO));
         }
 
         return cartDTOList;
@@ -88,8 +83,19 @@ public class CartService implements ICartService{
     }
 
     @Override
-    public Cart findCart(Long id) {
-        return cartRepo.findById(id).orElse(null);
+    @CircuitBreaker(name="products-service", fallbackMethod = "fallbackGetProductsForFindCarts")
+    @Retry(name = "products-service")
+    public CartDTO findCart(Long id) {
+        Cart cart = cartRepo.findById(id).orElse(null);
+
+        assert cart != null;
+        List<ProductsDTO> listProducts = productAPI.findProductsByIds(cart.getIdProducts());
+
+        return new CartDTO(cart,listProducts);
+    }
+
+    public CartDTO fallbackGetProductsForFindCarts(Long id, Throwable throwable) {
+        return new CartDTO();
     }
 
     @Override
@@ -99,8 +105,9 @@ public class CartService implements ICartService{
 
     @Override
     public void editCart(Long id, Cart cart) {
-        Cart cartEdit = this.findCart(id);
+        Cart cartEdit = cartRepo.findById(id).orElse(null);
 
+        assert cartEdit != null;
         cartEdit.setTotalPrice(cart.getTotalPrice());
         cartEdit.setIdProducts(cart.getIdProducts());
 

@@ -25,6 +25,11 @@ public class CartController {
         return cartServ.getCarts();
     }
 
+    @GetMapping("/get/{id}")
+    public CartDTO findCart(@PathVariable Long id){
+        return cartServ.findCart(id);
+    }
+
     @DeleteMapping("/delete/{id}")
     public String deleteCart(@PathVariable Long id){
         cartServ.deleteCart(id);
@@ -32,7 +37,7 @@ public class CartController {
     }
 
     @PutMapping("/edit")
-    public Cart editCart(@RequestBody Cart cart){
+    public CartDTO editCart(@RequestBody Cart cart){
         cartServ.editCart(cart.getId(), cart);
         return cartServ.findCart(cart.getId());
     }

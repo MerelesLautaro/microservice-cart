@@ -8,7 +8,7 @@ import java.util.List;
 public interface ICartService {
     public void saveCart(List<Long> idProducts);
     public List<CartDTO> getCarts();
-    public Cart findCart(Long id);
+    public CartDTO findCart(Long id);
     public void deleteCart(Long id);
     public void editCart(Long id, Cart cart);
 }
