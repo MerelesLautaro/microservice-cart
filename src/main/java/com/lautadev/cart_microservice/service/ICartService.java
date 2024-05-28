@@ -11,4 +11,5 @@ public interface ICartService {
     public CartDTO findCart(Long id);
     public void deleteCart(Long id);
     public void editCart(Long id, Cart cart);
+    public List<CartDTO> listCartsById(List<Long> idCarts);
 }

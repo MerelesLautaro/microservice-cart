@@ -10,10 +10,7 @@ import io.github.resilience4j.retry.annotation.Retry;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -113,5 +110,48 @@ public class CartService implements ICartService{
 
         cartRepo.save(cartEdit);
 
+    }
+
+    @Override
+    @CircuitBreaker(name="products-service", fallbackMethod = "fallbackGetProductsForListCartsById")
+    @Retry(name = "products-service")
+    public List<CartDTO> listCartsById(List<Long> idCarts) {
+        // Obtener los carritos desde el repositorio usando los IDs proporcionados
+        List<Cart> listCarts = cartRepo.findAllById(idCarts);
+        List<CartDTO> listCartsByIDs = new ArrayList<>();
+
+        // Si no hay carritos encontrados, retornar la lista vacía
+        if (listCarts.isEmpty()) {
+            return listCartsByIDs;
+        }
+
+        // Recolectar todos los IDs de productos de todos los carritos
+        List<Long> allProductIds = new ArrayList<>();
+        for (Cart cart : listCarts) {
+            allProductIds.addAll(cart.getIdProducts());
+        }
+
+        // Llamar a la API de productos una vez para obtener todos los productos necesarios
+        List<ProductsDTO> allProducts = productAPI.findProductsByIds(allProductIds);
+
+        // Mapear los productos obtenidos por su ID para un acceso rápido
+        Map<Long, ProductsDTO> productsMap = allProducts.stream()
+                .collect(Collectors.toMap(ProductsDTO::getCode, product -> product));
+
+        // Construir CartDTO para cada carrito
+        for (Cart cart : listCarts) {
+            List<ProductsDTO> listProductsDTO = cart.getIdProducts().stream()
+                    .map(productsMap::get)
+                    .collect(Collectors.toList());
+
+            CartDTO cartDTO = new CartDTO(cart, listProductsDTO);
+            listCartsByIDs.add(cartDTO);
+        }
+
+        return listCartsByIDs;
+    }
+
+    public List<CartDTO> fallbackGetProductsForListCartsById(List<Long> idCarts, Throwable throwable) {
+        return new ArrayList<>();
     }
 }

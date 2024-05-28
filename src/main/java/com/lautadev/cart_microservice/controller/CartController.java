@@ -42,4 +42,8 @@ public class CartController {
         return cartServ.findCart(cart.getId());
     }
 
+    @GetMapping("/listCartsById")
+    public List<CartDTO> listCartsById(@RequestParam List<Long> idCarts){
+        return cartServ.listCartsById(idCarts);
+    }
 }
